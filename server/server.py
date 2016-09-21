@@ -32,7 +32,6 @@ def RetrFile(name, sock):
             break
 
     fileDictionary = ast.literal_eval(f.getvalue().decode())
-    print (fileDictionary)
     f.close()
 
 
@@ -43,6 +42,7 @@ def RetrFile(name, sock):
             if os.path.getsize(filename) == item[1]:
                 continue
         
+        print ("Add Or Change:", filename)
         sock.send(item[0].encode())
         os.makedirs(os.path.dirname(filename),exist_ok=True)
 
@@ -57,9 +57,24 @@ def RetrFile(name, sock):
 
     sock.send(b"#end")
 
+    deleteOldFiles (fileDictionary)
+
     sock.close()
     print('connection closed')
-    os.chdir("/root")
+
+def deleteOldFiles (fileDictionary):
+    for path, subdirs, files in os.walk("."):
+        for name in files:
+            fullFileName = os.path.join(path, name)
+            deleteFile = True
+            for item in fileDictionary.items():
+                oldFile = item[0].replace("\\","/")
+                if oldFile ==fullFileName:
+                    deleteFile = False
+                    break
+            if deleteFile:
+                print ("Delete:", fullFileName)
+                os.remove(fullFileName)
 
 def Main():
     host = '81.169.243.248'
