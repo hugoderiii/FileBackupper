@@ -5,48 +5,69 @@ import threading
 import os
 import ast
 import io
+import errno
+
 
 def RetrFile(name, sock):
-    length = int(sock.recv(1024).decode())
-    sock.send(b'hallo')
-    print (length)
+    #get the path
+    root = "/root/Backup"
+    folder = sock.recv(1024).decode()
+    root = os.path.join (root, folder)
+
+    os.makedirs(root, exist_ok=True)
+	
+    os.chdir(root)
+    sock.send(b'OK')
+
+    #get the fileDictionary Size
+    dictionarySize = int(sock.recv(1024).decode())
+    sock.send(b'OK')
+
     #get dictionary with files and filesize
     f = io.BytesIO(b'')
-    while len(f.getvalue()) < length:
+    while True:
         data = sock.recv(1024)
         f.write (data)
-        print (len(f.getvalue()))
+        if len(f.getvalue())>=dictionarySize:
+            break
 
-    print ("hallo3")
     fileDictionary = ast.literal_eval(f.getvalue().decode())
     print (fileDictionary)
+    f.close()
+
 
     #iterate through dictionary
     for item in fileDictionary.items():
-        if os.path.isfile(item[0]):
-            if os.path.getsize(item[0]) == item[1]:
+        filename = item [0].replace ("\\","/")
+        if os.path.isfile(filename):
+            if os.path.getsize(filename) == item[1]:
                 continue
         
         sock.send(item[0].encode())
-        with open(item[0], 'wb') as f:
+        os.makedirs(os.path.dirname(filename),exist_ok=True)
+
+        totalRecv = 0
+        with open(filename, 'wb') as f:
             while True:
                 data = sock.recv(1024)
-                if data == b'#end':
-                    break
                 f.write(data)
+                totalRecv +=len(data)
+                if totalRecv>=item[1]:
+                    break
 
-        f.close()
     sock.send(b"#end")
 
     sock.close()
     print('connection closed')
+    os.chdir("/root")
 
 def Main():
-    host = '127.0.0.1'
+    host = '81.169.243.248'
     port = 5000
 
 
     s = socket.socket()
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((host,port))
 
     s.listen(5)
@@ -59,6 +80,7 @@ def Main():
         t.start()
          
     s.close()
+
 
 if __name__ == '__main__':
     Main()
