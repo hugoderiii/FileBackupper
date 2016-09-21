@@ -1,26 +1,43 @@
-# client.py
+#----------------------//CLIENT//-------------------------------
 
-import socket                   # Import socket module
+import socket
+import os
 
-s = socket.socket()             # Create a socket object
-host = socket.gethostname()     # Get local machine name
-port = 60000                    # Reserve a port for your service.
+def Main():
+    host = '127.0.0.1'
+    port = 5000
 
-s.connect((host, port))
-s.send(b"Hello server!")
+    sock = socket.socket()
+    sock.connect((host, port))
 
-with open('received_file', 'wb') as f:
-    print ('file opened')
+    root = '.'
+    fileList = {}
+    for path, subdirs, files in os.walk(root):
+        for name in files:
+            fullFileName = os.path.join(path, name)
+            if os.path.isfile(fullFileName):
+                fileList[fullFileName] = os.path.getsize(fullFileName)
+    print (fileList)
+    sock.send(str(len(str(fileList).encode ())).encode ())
+    nix = sock.recv(1024)
+    sock.send(str(fileList).encode ())
+
     while True:
-        print('receiving data...')
-        data = s.recv(1024)
-        print('data=%s', (data))
-        if not data:
+        filename = sock.recv(1024).decode()
+        if (filename == "#end"):
             break
-        # write data to a file
-        f.write(data)
+        with open(filename, 'rb') as f:
+            bytesToSend = f.read(1024)
+            sock.send(bytesToSend)
+            while bytesToSend != b'':
+                bytesToSend = f.read(1024)
+                sock.send(bytesToSend)
+        print ("end")
+        sock.send(b'#end')
 
-f.close()
-print('Successfully get the file')
-s.close()
-print('connection closed')
+    print ("close connection")
+    sock.close ()
+    
+
+if __name__ == '__main__':
+    Main()
