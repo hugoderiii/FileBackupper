@@ -7,7 +7,7 @@ def Main():
 
 	directoriesList = []
 	with open("directories.list") as f:
-		directoriesList = f.readlines()
+		directoriesList = f.read().splitlines()
 
 	host = '81.169.243.248'
 	port = 5000
@@ -39,6 +39,7 @@ def openConnection (host, port, root):
 		if (filename == "#end"):
 			break
 
+		print ("Send File: ", filename)
 		with open(filename, 'rb') as f:
 			bytesToSend = f.read(1024)
 			sock.send(bytesToSend)
