@@ -73,7 +73,7 @@ def deleteOldFiles (fileDictionary):
                     deleteFile = False
                     break
             if deleteFile:
-                print ("Delete:", fullFileName)
+                print ("Delete:", fullFileName.encode("utf-8", "surrogateescape"))
                 os.remove(fullFileName)
 
 def Main():
