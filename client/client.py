@@ -2,12 +2,16 @@
 
 import socket
 import os
+import sys
 
 def Main():
 
-	directoriesList = []
-	with open("directories.list") as f:
-		directoriesList = f.read().splitlines()
+	if (len(sys.argv)==1):
+		directoriesList = []
+		with open("directories.list") as f:
+			directoriesList = f.read().splitlines()
+	else:
+		directoriesList = sys.argv[1:]
 
 	host = '81.169.243.248'
 	port = 5000
@@ -39,7 +43,7 @@ def openConnection (host, port, root):
 		if (filename == "#end"):
 			break
 
-		print ("Send File: ", filename)
+		print ("Send File: ", filename.encode('utf-8'))
 		with open(filename, 'rb') as f:
 			bytesToSend = f.read(1024)
 			sock.send(bytesToSend)

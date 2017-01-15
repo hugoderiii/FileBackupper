@@ -7,6 +7,7 @@ import ast
 import io
 import errno
 
+logf = open("error.log", "w")
 
 def RetrFile(name, sock):
     #get the path
@@ -14,22 +15,34 @@ def RetrFile(name, sock):
     folder = sock.recv(1024).decode()
     root = os.path.join (root, folder)
 
-    os.makedirs(root, exist_ok=True)
+    try:
+        os.makedirs(root, exist_ok=True)
+    except Exception as e:
+        print("folder exists!")
 	
     os.chdir(root)
     sock.send(b'OK')
 
-    #get the fileDictionary Size
-    dictionarySize = int(sock.recv(1024).decode())
+    try:
+        #get the fileDictionary Size
+        dictionarySize = int(sock.recv(1024).decode())
+    except Exception as e:
+        logf.write("Failed to get dictionary size: {0}\n".format( str(e)))
+        return;
+
     sock.send(b'OK')
 
     #get dictionary with files and filesize
     f = io.BytesIO(b'')
     while True:
-        data = sock.recv(1024)
-        f.write (data)
-        if len(f.getvalue())>=dictionarySize:
-            break
+        try:
+            data = sock.recv(1024)
+            f.write (data)
+            if len(f.getvalue())>=dictionarySize:
+                break
+        except Exception as e:
+            logf.write("Failed to get file dictionary: {0}\n".format( str(e)))
+            return;
 
     fileDictionary = ast.literal_eval(f.getvalue().decode())
     f.close()
@@ -49,11 +62,16 @@ def RetrFile(name, sock):
         totalRecv = 0
         with open(filename, 'wb') as f:
             while True:
-                data = sock.recv(1024)
-                f.write(data)
-                totalRecv +=len(data)
-                if totalRecv>=item[1]:
-                    break
+                try:
+                    data = sock.recv(1024)
+                    f.write(data)
+                    totalRecv +=len(data)
+                    if totalRecv>=item[1]:
+                        break
+                except Exception as e:
+                    logf.write("Failed get file: {0}\n{1}\n".format( filename,str(e)))
+                    return;
+
 
     sock.send(b"#end")
 
