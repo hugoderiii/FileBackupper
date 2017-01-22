@@ -3,6 +3,9 @@
 import socket
 import os
 import sys
+import json
+
+password = ''
 
 def Main():
 
@@ -13,7 +16,14 @@ def Main():
 	else:
 		directoriesList = sys.argv[1:]
 
-	host = '81.169.243.248'
+	host = ''
+	global password
+	with open('data.json') as data_file:    
+		data = json.load(data_file)
+		host = data["host"]
+		password = data["password"]
+
+
 	port = 5000
 	for directory in directoriesList:
 		openConnection (host, port, directory)
@@ -28,6 +38,15 @@ def openConnection (host, port, root):
 			fullFileName = os.path.join(path, name)
 			if os.path.isfile(fullFileName):
 				fileDictionary[fullFileName] = os.path.getsize(fullFileName)
+
+	print (password)
+	#send the password
+	sock.send(password.encode())
+	answer = sock.recv(1024).decode()
+	if (answer =="CANCEL"):
+		sock.close ()
+		print ("close because of wrong password")
+		return
 
 	#send the basefolder
 	sock.send(os.path.basename(os.path.normpath(root)).encode())

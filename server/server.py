@@ -6,10 +6,24 @@ import os
 import ast
 import io
 import errno
+import json
+
+password = ''
 
 logf = open("error.log", "w")
 
 def RetrFile(name, sock):
+    #get the password
+    clientPw = sock.recv(1024).decode()
+    print (clientPw)
+    print (password)
+    if password == clientPw:
+        sock.send(b'OK')
+    else:
+        sock.send(b'CANCEL')
+        sock.close()
+        return
+
     #get the path
     root = "/root/Backup"
     folder = sock.recv(1024).decode()
@@ -51,13 +65,19 @@ def RetrFile(name, sock):
     #iterate through dictionary
     for item in fileDictionary.items():
         filename = item [0].replace ("\\","/")
+
         if os.path.isfile(filename):
             if os.path.getsize(filename) == item[1]:
                 continue
         
+        os.makedirs(os.path.dirname(filename),exist_ok=True)
+        if item[1]==0:
+            print ("Save Empty File")
+            open(filename, "w+").close()
+            continue
+        
         print ("Add Or Change:", filename)
         sock.send(item[0].encode())
-        os.makedirs(os.path.dirname(filename),exist_ok=True)
 
         totalRecv = 0
         with open(filename, 'wb') as f:
@@ -95,8 +115,14 @@ def deleteOldFiles (fileDictionary):
                 os.remove(fullFileName)
 
 def Main():
-    host = '81.169.243.248'
+    host = ''
     port = 5000
+    global password
+    with open('data.json') as data_file:    
+        data = json.load(data_file)
+        host = data["host"]
+        password = data["password"]
+
 
 
     s = socket.socket()
