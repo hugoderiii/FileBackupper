@@ -39,7 +39,6 @@ def openConnection (host, port, root):
 			if os.path.isfile(fullFileName):
 				fileDictionary[fullFileName] = os.path.getsize(fullFileName)
 
-	print (password)
 	#send the password
 	sock.send(password.encode())
 	answer = sock.recv(1024).decode()

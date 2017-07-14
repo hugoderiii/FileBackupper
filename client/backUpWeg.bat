@@ -1,1 +1,1 @@
-python client.py D:/Weg
+python client.py F:/Weg
