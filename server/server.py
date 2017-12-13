@@ -1,5 +1,5 @@
 #--------------------//SERVER//-----------------------
-
+import time
 import socket
 import threading
 import os
@@ -13,10 +13,27 @@ password = ''
 logf = open("error.log", "w")
 
 def RetrFile(name, sock):
-	#get the password
+	passwordCheck (sock)
+	getPath (sock)
+	dictionarySize = getDictionarySize (sock)
+	if (dictionarySize is None):
+		return
+
+	sock.send(b'OK')
+
+	fileDictionary = getFileDictionary (sock, dictionarySize)
+	if fileDictionary is None:
+		return
+
+	pullChangedFiles (sock, fileDictionary)
+
+	removeObsolteFiles (sock)
+
+	sock.close()
+	print('connection closed')
+
+def passwordCheck (sock):
 	clientPw = sock.recv(1024).decode()
-	print (clientPw)
-	print (password)
 	if password == clientPw:
 		sock.send(b'OK')
 	else:
@@ -24,7 +41,7 @@ def RetrFile(name, sock):
 		sock.close()
 		return
 
-	#get the path
+def getPath (sock):
 	root = "/root/Backup"
 	folder = sock.recv(1024).decode()
 	root = os.path.join (root, folder)
@@ -33,20 +50,19 @@ def RetrFile(name, sock):
 		os.makedirs(root, exist_ok=True)
 	except Exception as e:
 		print("folder exists!")
-	
+
 	os.chdir(root)
 	sock.send(b'OK')
 
+def getDictionarySize (sock):
 	try:
 		#get the fileDictionary Size
-		dictionarySize = int(sock.recv(1024).decode())
+		return int(sock.recv(1024).decode())
 	except Exception as e:
 		logf.write("Failed to get dictionary size: {0}\n".format( str(e)))
-		return;
+		return None;
 
-	sock.send(b'OK')
-
-	#get dictionary with files and filesize
+def getFileDictionary (sock, dictionarySize):
 	f = io.BytesIO(b'')
 	while True:
 		try:
@@ -56,51 +72,46 @@ def RetrFile(name, sock):
 				break
 		except Exception as e:
 			logf.write("Failed to get file dictionary: {0}\n".format( str(e)))
-			return;
+			return None;
 
 	fileDictionary = ast.literal_eval(f.getvalue().decode())
 	f.close()
+	return fileDictionary
 
-
-	#iterate through dictionary
+def pullChangedFiles (sock, fileDictionary):
 	for item in fileDictionary.items():
-		filename = item [0].replace ("\\","/")
+			filename = item [0].replace ("\\","/")
 
-		if os.path.isfile(filename):
-			if os.path.getsize(filename) == item[1]:
+			if os.path.isfile(filename):
+				if os.path.getsize(filename) == item[1]:
+					continue
+
+			os.makedirs(os.path.dirname(filename),exist_ok=True)
+			if item[1]==0:
+				print ("Save Empty File")
+				open(filename, "w+").close()
 				continue
-		
-		os.makedirs(os.path.dirname(filename),exist_ok=True)
-		if item[1]==0:
-			print ("Save Empty File")
-			open(filename, "w+").close()
-			continue
-		
-		print ("Add Or Change:", filename)
-		sock.send(item[0].encode())
 
-		totalRecv = 0
-		with open(filename, 'wb') as f:
-			while True:
-				try:
-					data = sock.recv(1024)
-					f.write(data)
-					totalRecv +=len(data)
-					if totalRecv>=item[1]:
-						break
-				except Exception as e:
-					logf.write("Failed get file: {0}\n{1}\n".format( filename,str(e)))
-					return;
+			print ("Add Or Change:", filename)
+			sock.send(item[0].encode())
 
+			totalRecv = 0
+			with open(filename, 'wb') as f:
+				while True:
+					try:
+						data = sock.recv(1024)
+						f.write(data)
+						totalRecv +=len(data)
+						if totalRecv>=item[1]:
+							break
+					except Exception as e:
+						logf.write("Failed get file: {0}\n{1}\n".format( filename,str(e)))
+						return
 
 	sock.send(b"#end")
+	print('files received')
 
-	deleteOldFiles (fileDictionary)
-
-	sock.close()
-	print('connection closed')
-
-def deleteOldFiles (fileDictionary):
+def removeObsolteFiles (sock):
 	for path, subdirs, files in os.walk("."):
 		for name in files:
 			fullFileName = os.path.join(path, name)
@@ -115,16 +126,18 @@ def deleteOldFiles (fileDictionary):
 				os.remove(fullFileName)
 
 		for name in subdirs:
+			print (name)
 			fname = os.path.join(path,name)
-			if not os.listdir(fname): #to check wither the dir is empty
+			if not os.listdir(fname): #to check wether the dir is empty
 				print ("Delete:", fname.encode("utf-8", "surrogateescape"))
 				os.removedirs(fname)
 
 def Main():
+	print ('Only works with python3! If started with python please restart with python3!')
 	host = ''
 	port = 5000
 	global password
-	with open('data.json') as data_file:    
+	with open('data.json') as data_file:
 		data = json.load(data_file)
 		host = data["host"]
 		password = data["password"]
@@ -143,7 +156,8 @@ def Main():
 		print ("client connected ip:<" + str(addr) + ">")
 		t = threading.Thread(target=RetrFile, args=("RetrThread", c))
 		t.start()
-		 
+		time.sleep(1);
+
 	s.close()
 
 
