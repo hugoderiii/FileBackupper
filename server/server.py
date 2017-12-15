@@ -11,23 +11,22 @@ import json
 password = ''
 
 logf = open("error.log", "w")
+ROOT_PATH = "/root/Backup"
 
 def RetrFile(name, sock):
 	passwordCheck (sock)
-	getPath (sock)
-	dictionarySize = getDictionarySize (sock)
-	if (dictionarySize is None):
-		return
+	root = getPath (sock)
 
-	sock.send(b'OK')
-
-	fileDictionary = getFileDictionary (sock, dictionarySize)
+	fileDictionary = getFileDictionary (sock)
 	if fileDictionary is None:
 		return
 
 	pullChangedFiles (sock, fileDictionary)
 
-	removeObsolteFiles (sock)
+	fileList = getFiles (root)
+	sendFileNames (sock, fileList)
+	obsoleteFiles = receiveFileList (sock)
+	removeObsoleteFiles (obsoleteFiles)
 
 	sock.close()
 	print('connection closed')
@@ -42,9 +41,8 @@ def passwordCheck (sock):
 		return
 
 def getPath (sock):
-	root = "/root/Backup"
 	folder = sock.recv(1024).decode()
-	root = os.path.join (root, folder)
+	root = os.path.join (ROOT_PATH, folder)
 
 	try:
 		os.makedirs(root, exist_ok=True)
@@ -53,16 +51,12 @@ def getPath (sock):
 
 	os.chdir(root)
 	sock.send(b'OK')
+	return root
 
-def getDictionarySize (sock):
-	try:
-		#get the fileDictionary Size
-		return int(sock.recv(1024).decode())
-	except Exception as e:
-		logf.write("Failed to get dictionary size: {0}\n".format( str(e)))
-		return None;
 
-def getFileDictionary (sock, dictionarySize):
+def getFileDictionary (sock):
+	dictionarySize = int(sock.recv(1024).decode())
+	sock.send(b'OK')
 	f = io.BytesIO(b'')
 	while True:
 		try:
@@ -111,26 +105,52 @@ def pullChangedFiles (sock, fileDictionary):
 	sock.send(b"#end")
 	print('files received')
 
-def removeObsolteFiles (sock):
+
+def getFiles (root):
+	os.chdir(root)
+	fileList = []
 	for path, subdirs, files in os.walk("."):
 		for name in files:
-			fullFileName = os.path.join(path, name)
-			deleteFile = True
-			for item in fileDictionary.items():
-				oldFile = item[0].replace("\\","/")
-				if oldFile ==fullFileName:
-					deleteFile = False
-					break
-			if deleteFile:
-				print ("Delete:", fullFileName.encode("utf-8", "surrogateescape"))
-				os.remove(fullFileName)
-
+			fullName = os.path.join(path, name)
+			fileList.append(fullName)
 		for name in subdirs:
-			print (name)
-			fname = os.path.join(path,name)
-			if not os.listdir(fname): #to check wether the dir is empty
-				print ("Delete:", fname.encode("utf-8", "surrogateescape"))
-				os.removedirs(fname)
+			fullName = os.path.join(path, name)
+			fileList.append(fullName)
+	print ("get list of all files")
+	return fileList
+
+def sendFileNames (sock,fileList):
+	size = len(str(fileList).encode ())
+	sock.send(str(size).encode ())
+	sock.recv(1024)
+	sock.send(str(fileList).encode ())
+	print ("send file names")
+
+def receiveFileList (sock):
+	size = int(sock.recv(1024).decode())
+	sock.send(b'OK')
+	f = io.BytesIO(b'')
+	while True:
+		try:
+			data = sock.recv(1024)
+			f.write (data)
+			if len(f.getvalue())>=size:
+				break
+		except Exception as e:
+			logf.write("Failed to get obsolete files: {0}\n".format( str(e)))
+			return None;
+
+	fileList = ast.literal_eval(f.getvalue().decode())
+	f.close()
+	print ("received file names")
+	return fileList
+
+def removeObsoleteFiles (fileList):
+	for file in fileList[::-1]:
+		if os.path.isfile (file):
+			os.remove (file)
+		else:
+			os.rmdir (file)
 
 def Main():
 	print ('Only works with python3! If started with python please restart with python3!')
