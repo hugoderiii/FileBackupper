@@ -146,6 +146,7 @@ def receiveFileList (sock):
 	return fileList
 
 def removeObsoleteFiles (fileList):
+	#reverse iterate through list to avoid deleting non empty directories (begin with the leaves)
 	for file in fileList[::-1]:
 		if os.path.isfile (file):
 			os.remove (file)
