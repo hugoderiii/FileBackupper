@@ -9,9 +9,9 @@ import errno
 import json
 
 password = ''
+rootPath = ''
 
 logf = open("error.log", "w")
-ROOT_PATH = "/root/Backup"
 
 def RetrFile(name, sock):
 	passwordCheck (sock)
@@ -42,7 +42,7 @@ def passwordCheck (sock):
 
 def getPath (sock):
 	folder = sock.recv(1024).decode()
-	root = os.path.join (ROOT_PATH, folder)
+	root = os.path.join (rootPath, folder)
 
 	try:
 		os.makedirs(root, exist_ok=True)
@@ -158,10 +158,12 @@ def Main():
 	host = ''
 	port = 5000
 	global password
+	global rootPath
 	with open('data.json') as data_file:
 		data = json.load(data_file)
 		host = data["host"]
 		password = data["password"]
+		rootPath = data["rootPath"]
 
 
 
