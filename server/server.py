@@ -30,7 +30,7 @@ def RetrFile(name, sock):
         obsoleteFiles = receiveFileList(sock)
         removeObsoleteFiles(obsoleteFiles)
     except Exception as e:
-        print("an exception occured. Therefore the connection was closed\nerror:"+e)
+        print("an exception occured. Therefore the connection was closed\nerror:"+e.args)
 
     sock.close()
     print('connection closed')
